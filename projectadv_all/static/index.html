@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRUD User Management</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+
+    const userApiUrl = "http://localhost:8080/users";
+    const jsonApiUrl = "http://localhost:8080/json";
+    let currentPage = 1; // Для пагинации
+
+    async function fetchUsers() {
+      const response = await fetch(userApiUrl);
+      const users = await response.json();
+      const userTableBody = document.getElementById("user-table-body");
+      userTableBody.innerHTML = "";
+      users.forEach(user => {
+        const row = `
+          <tr>
+            <td>${user.ID}</td>
+            <td>${user.Name}</td>
+            <td>${user.Email}</td>
+            <td>
+              <button onclick="editUser(${user.ID}, '${user.Name}', '${user.Email}')">Edit</button>
+              <button onclick="deleteUser(${user.ID})">Delete</button>
+            </td>
+          </tr>`;
+        userTableBody.innerHTML += row;
+      });
+    }
+
+    async function createUser(event) {
+      event.preventDefault();
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const response = await fetch(userApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ Name: name, Email: email }),
+      });
+      if (response.ok) {
+        alert("User created successfully");
+        fetchUsers();
+        document.getElementById("user-form").reset();
+      } else {
+        alert("Error creating user");
+      }
+    }
+    async function sendEmail(event) {
+      event.preventDefault(); // Останавливаем стандартное поведение формы
+
+      // Собираем данные формы
+      const form = document.getElementById("send-email-form");
+      const formData = new FormData(form); // Создаём объект FormData для работы с файлами
+
+      try {
+        const response = await fetch("http://localhost:8080/admin/send-email", {
+          method: "POST",
+          body: formData, // Отправляем данные формы
+        });
+
+        if (response.ok) {
+          alert("Email sent successfully!");
+        } else {
+          const errorData = await response.json();
+          alert(`Failed to send email: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error("Error sending email:", error);
+        alert("An error occurred while sending the email. Please try again.");
+      }
+    }
+
+
+
+
+    async function editUser(id, name, email) {
+      document.getElementById("name").value = name;
+      document.getElementById("email").value = email;
+      document.getElementById("user-id").value = id;
+      document.getElementById("submit-btn").textContent = "Update User";
+    }
+
+    async function updateUser(event) {
+      event.preventDefault();
+      const id = document.getElementById("user-id").value;
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const response = await fetch(userApiUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ID: parseInt(id), Name: name, Email: email }),
+      });
+      if (response.ok) {
+        alert("User updated successfully");
+        fetchUsers();
+        document.getElementById("user-form").reset();
+        document.getElementById("submit-btn").textContent = "Create User";
+      } else {
+        alert("Error updating user");
+      }
+    }
+
+    async function deleteUser(id) {
+      const response = await fetch(userApiUrl, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ID: id }),
+      });
+      if (response.ok) {
+        alert("User deleted successfully");
+        fetchUsers();
+      } else {
+        alert("Error deleting user");
+      }
+    }
+
+    function handleSubmit(event) {
+      const isUpdate = document.getElementById("submit-btn").textContent === "Update User";
+      if (isUpdate) {
+        updateUser(event);
+      } else {
+        createUser(event);
+      }
+    }
+
+    async function sendPostRequest(event) {
+      event.preventDefault();
+      const message = document.getElementById("json-message").value;
+      const response = await fetch(jsonApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        alert(`Status: ${result.status}\nMessage: ${result.message}`);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    }
+
+    async function sendGetRequest() {
+      const response = await fetch(jsonApiUrl, { method: "GET" });
+      const result = await response.json();
+      if (response.ok) {
+        alert(`Status: ${result.status}\nMessage: ${result.message}`);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    }
+
+    async function getUserById(event) {
+      event.preventDefault();
+      const id = document.getElementById("user-id-input").value;
+      const response = await fetch(`${userApiUrl}/by-id?id=${id}`);
+      const result = await response.json();
+      if (response.ok) {
+        document.getElementById("user-details").innerHTML = `
+          <p>ID: ${result.ID}</p>
+          <p>Name: ${result.Name}</p>
+          <p>Email: ${result.Email}</p>`;
+      } else {
+        document.getElementById("user-details").innerHTML = `<p>${result.message}</p>`;
+      }
+    }
+
+    async function filterAndPaginateUsers() {
+      const filter = document.getElementById("filter").value;
+      const sort = document.getElementById("sort").value;
+      const page = document.getElementById("page").value;
+      const limit = document.getElementById("limit").value;
+
+      const response = await fetch(`${userApiUrl}?filter=${filter}&sort=${sort}&page=${page}&limit=${limit}`);
+      const users = await response.json();
+
+      const resultTableBody = document.getElementById("result-table-body");
+      resultTableBody.innerHTML = "";
+      users.forEach(user => {
+        const row = `
+          <tr>
+            <td>${user.ID}</td>
+            <td>${user.Name}</td>
+            <td>${user.Email}</td>
+          </tr>`;
+        resultTableBody.innerHTML += row;
+      });
+    }
+
+    function nextPage() {
+      const pageInput = document.getElementById("page");
+      currentPage = parseInt(pageInput.value) + 1;
+      pageInput.value = currentPage;
+      filterAndPaginateUsers();
+    }
+
+    function prevPage() {
+      const pageInput = document.getElementById("page");
+      if (currentPage > 1) {
+        currentPage = parseInt(pageInput.value) - 1;
+        pageInput.value = currentPage;
+        filterAndPaginateUsers();
+      }
+    }
+    async function fetchEmailLogs() {
+      const response = await fetch("http://localhost:8080/admin/email-logs");
+      const logs = await response.json();
+      const tableBody = document.getElementById("email-logs-table");
+      tableBody.innerHTML = "";
+      logs.forEach(log => {
+        const row = `
+      <tr>
+        <td>${log.ID}</td>
+        <td>${log.Subject}</td>
+        <td>${log.Body}</td>
+        <td>${log.Recipients}</td>
+        <td>${log.Status}</td>
+        <td>${new Date(log.Timestamp).toLocaleString()}</td>
+      </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+    async function toggleUserActivation(userId, active) {
+      const response = await fetch("http://localhost:8080/admin/toggle-user-activation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: userId, active: active }),
+      });
+      const result = await response.json();
+      alert(result.message);
+      fetchUsersForAdmin();
+    }
+    async function fetchUsersForAdmin() {
+      const response = await fetch(userApiUrl);
+      const users = await response.json();
+      const tableBody = document.getElementById("admin-users-table");
+      tableBody.innerHTML = "";
+      users.forEach(user => {
+        const row = `
+      <tr>
+        <td>${user.ID}</td>
+        <td>${user.Name}</td>
+        <td>${user.Email}</td>
+        <td>${user.Active ? "Yes" : "No"}</td>
+        <td>
+          <button onclick="toggleUserActivation(${user.ID}, ${!user.Active})">
+            ${user.Active ? "Deactivate" : "Activate"}
+          </button>
+        </td>
+      </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const authToken = localStorage.getItem("authToken"); // Проверяем, есть ли токен
+      const isLoggedIn = authToken !== null;
+
+      // Ссылки навигации
+      const profileLink = document.getElementById("nav-profile");
+      const loginLink = document.getElementById("nav-login");
+      const registerLink = document.getElementById("nav-register");
+      const logoutLink = document.getElementById("nav-logout");
+
+      if (isLoggedIn) {
+        // Если пользователь залогинен, показываем профиль и выход
+        profileLink.style.display = "block";
+        loginLink.style.display = "none";
+        registerLink.style.display = "none";
+        logoutLink.style.display = "block";
+
+        // Получаем информацию о пользователе (например, имя)
+        fetch("http://localhost:8080/profile", {
+          headers: {
+            "Authorization": `Bearer ${authToken}`
+          }
+        })
+                .then(response => response.json())
+                .then(data => {
+                  // Обновляем текст ссылки "Profile" с именем пользователя
+                  if (data.name) {
+                    profileLink.innerHTML = `<a href="/profile.html">Welcome, ${data.name}</a>`;
+                  }
+                })
+                .catch(err => {
+                  console.error("Failed to fetch user profile:", err);
+                });
+
+      } else {
+        // Если пользователь НЕ залогинен, показываем вход и регистрацию
+        profileLink.style.display = "none";
+        loginLink.style.display = "block";
+        registerLink.style.display = "block";
+        logoutLink.style.display = "none";
+      }
+    });
+
+    // Функция выхода
+    function logout() {
+      localStorage.removeItem("authToken");
+      alert("You have been logged out!");
+      window.location.href = "/login.html";
+    }
+
+
+
+
+    function navigateTo(page) {
+      const pages = document.querySelectorAll(".page");
+      pages.forEach(p => p.style.display = "none");
+      document.getElementById(page).style.display = "block";
+    }
+
+    window.onload = () => {
+      fetchUsers();
+      navigateTo('page1');
+    };
+  </script>
+
+</head>
+<body>
+<header>
+  <!-- Навигационная панель -->
+  <nav>
+    <button onclick="navigateTo('page1')">User Management</button>
+    <button onclick="navigateTo('page2')">Filter and Paginate</button>
+    <button onclick="navigateTo('page3')">Admin Panel</button>
+
+    <!-- Динамические ссылки для пользователя -->
+    <ul class="nav-links">
+      <li id="nav-profile" style="display: none;"><a href="/profile.html">Profile</a></li>
+      <li id="nav-login" style="display: none;"><a href="/login.html">Login</a></li>
+      <li id="nav-register" style="display: none;"><a href="/register.html">Register</a></li>
+      <li id="nav-logout" style="display: none;"><a href="#" onclick="logout()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <h1>CRUD User Management</h1>
+</header>
+
+<script>
+  // Проверяем, залогинен ли пользователь
+  document.addEventListener("DOMContentLoaded", () => {
+    const isLoggedIn = localStorage.getItem("authToken") !== null;
+
+    // Ссылки навигации
+    const loginLink = document.getElementById("nav-login");
+    const registerLink = document.getElementById("nav-register");
+    const logoutLink = document.getElementById("nav-logout");
+
+    if (isLoggedIn) {
+      loginLink.style.display = "none";
+      registerLink.style.display = "none";
+      logoutLink.style.display = "block";
+    } else {
+      loginLink.style.display = "block";
+      registerLink.style.display = "block";
+      logoutLink.style.display = "none";
+    }
+  });
+
+  // Функция выхода
+  function logout() {
+    localStorage.removeItem("authToken");
+    alert("You have been logged out!");
+    window.location.href = "/login.html";
+  }
+</script>
+
+<h1>CRUD User Management</h1>
+</header>
+<main>
+  <div id="page1" class="page">
+    <section class="form-section">
+      <h2>Create or Update User</h2>
+      <form id="user-form" onsubmit="handleSubmit(event)">
+        <input type="hidden" id="user-id">
+        <label for="name">Name:</label>
+        <input type="text" id="name" placeholder="Enter name" required>
+        <label for="email">Email:</label>
+        <input type="email" id="email" placeholder="Enter email" required>
+        <button id="submit-btn" type="submit">Create User</button>
+      </form>
+    </section>
+
+    <section class="table-section">
+      <h2>User List</h2>
+      <table>
+        <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody id="user-table-body"></tbody>
+      </table>
+    </section>
+
+    <section class="json-section">
+      <h2>JSON Interaction</h2>
+      <form id="json-post-form" onsubmit="sendPostRequest(event)">
+        <label for="json-message">Message:</label>
+        <input type="text" id="json-message" placeholder="Enter your message" required>
+        <button type="submit">Send POST</button>
+      </form>
+      <button onclick="sendGetRequest()">Send GET</button>
+    </section>
+
+    <section class="get-by-id-section">
+      <h2>Get User By ID</h2>
+      <form id="get-user-form" onsubmit="getUserById(event)">
+        <label for="user-id-input">User ID:</label>
+        <input type="number" id="user-id-input" placeholder="Enter user ID" required>
+        <button type="submit">Get User</button>
+      </form>
+      <div id="user-details"></div>
+    </section>
+  </div>
+
+
+
+  <div id="page2" class="page" style="display: none;">
+    <h2>Filter and Paginate Users</h2>
+    <form onsubmit="event.preventDefault(); filterAndPaginateUsers();">
+      <label for="filter">Filter by Name:</label>
+      <input type="text" id="filter" placeholder="Enter filter">
+      <label for="sort">Sort:</label>
+      <select id="sort">
+        <option value="">None</option>
+        <option value="name">Name</option>
+        <option value="email">Email</option>
+      </select>
+      <label for="page">Page:</label>
+      <input type="number" id="page" min="1" value="1">
+      <label for="limit">Limit:</label>
+      <input type="number" id="limit" min="1" value="10">
+      <button type="submit">Apply</button>
+    </form>
+
+    <div class="pagination-buttons">
+      <button onclick="prevPage()">Previous Page</button>
+      <button onclick="nextPage()">Next Page</button>
+    </div>
+
+
+    <h2>Results</h2>
+    <table>
+      <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+      </tr>
+      </thead>
+      <tbody id="result-table-body"></tbody>
+    </table>
+
+  </div>
+</main>
+</div> <!-- Закрытие page2 -->
+
+<!-- Новый div для Admin Panel -->
+<div id="page3" class="page" style="display: none;">
+  <h2>Admin Panel</h2>
+
+  <!-- Раздел отправки email -->
+  <section>
+    <h3>Send Emails</h3>
+    <form id="send-email-form" onsubmit="sendEmail(event)" enctype="multipart/form-data">
+      <label for="email-subject">Subject:</label>
+      <input type="text" id="email-subject" name="subject" placeholder="Enter email subject" required>
+
+      <label for="email-body">Body:</label>
+      <textarea id="email-body" name="body" placeholder="Enter email body" required></textarea>
+
+      <label for="email-recipients">Recipients (comma separated):</label>
+      <input type="text" id="email-recipients" name="recipients" placeholder="Enter recipients emails" required>
+
+      <!-- Новое поле для загрузки файлов -->
+      <label for="email-attachment">Attachment:</label>
+      <input type="file" id="email-attachment" name="attachment">
+
+      <button type="submit">Send Email</button>
+    </form>
+
+  </section>
+
+  
+
+  <!-- Раздел логов email -->
+  <section>
+    <h3>Sent Emails</h3>
+    <button onclick="fetchEmailLogs()">Refresh Logs</button>
+    <table>
+      <thead>
+      <tr>
+        <th>ID</th>
+        <th>Subject</th>
+        <th>Body</th>
+        <th>Recipients</th>
+        <th>Status</th>
+        <th>Timestamp</th>
+      </tr>
+      </thead>
+      <tbody id="email-logs-table"></tbody>
+    </table>
+  </section>
+
+  <!-- Раздел управления пользователями -->
+  <section>
+    <h3>User Management</h3>
+    <button onclick="fetchUsersForAdmin()">Refresh Users</button>
+    <table>
+      <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Active</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody id="admin-users-table"></tbody>
+    </table>
+  </section>
+</div>
+
+
+</div>
+
+
+</main>
+
+
+</body>
+</html>

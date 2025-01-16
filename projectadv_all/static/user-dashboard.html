@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>User Dashboard</h1>
+  <nav>
+    <a href="/profile.html">Profile</a>
+    <a href="#" onclick="logout()">Logout</a>
+  </nav>
+</header>
+<main>
+  <h2>Welcome, User!</h2>
+  <p>Here you can view your information and interact with the system.</p>
+</main>
+<script>
+  function logout() {
+    localStorage.removeItem("authToken");
+    window.location.href = "/login.html";
+  }
+</script>
+</body>
+</html>
